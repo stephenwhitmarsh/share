@@ -1,0 +1,218 @@
+
+\tikzstyle{sharedFeatures} = [
+        rectangle, 
+        inner xsep=0cm,
+        inner ysep=0.2\baselineskip,
+        minimum width=2.3cm, 
+        minimum height=1cm, 
+        % text centered, 
+        draw=black, 
+        align=center,
+    ]
+\tikzstyle{startstop} = [
+        sharedFeatures, 
+        rounded corners = \corners, 
+    ]
+\tikzstyle{manual} = [
+        sharedFeatures, 
+        trapezium, 
+        minimum width=1.5cm, 
+        minimum height=2.3cm,     
+        shape border rotate=90,
+        trapezium stretches,
+        trapezium left angle=90,
+        trapezium right angle=80,
+    ]
+\tikzstyle{io} = [
+        sharedFeatures,
+        minimum width=2.3cm,
+        minimum height=1cm,
+        trapezium, 
+        trapezium left angle=70, 
+        trapezium right angle=110,
+        trapezium stretches,
+        fill=black!20,
+    ]
+\tikzstyle{process} = [
+        sharedFeatures,
+    ]
+\tikzstyle{decision} = [
+        sharedFeatures,
+        diamond,
+        minimum height=2.3cm,
+        inner xsep=0cm,
+        inner ysep=0\baselineskip,        
+        fill=black!10,
+    ]
+\tikzstyle{combine} = [
+        sharedFeatures,
+        diamond,
+        minimum height=0.7cm,
+        minimum width=0.7cm,
+        inner xsep=0cm,
+        inner ysep=0\baselineskip,        
+    ]    
+\tikzstyle{empty} = [
+        sharedFeatures,
+        draw=none,
+        fill=none,
+    ] 
+\tikzstyle{emptySmall} = [
+        sharedFeatures,
+        draw=none,
+        minimum height=0.7cm,
+        minimum width=0.7cm,
+        inner xsep=0cm,
+        inner ysep=0\baselineskip,        
+    ]    
+
+\def\corners{2.mm}
+\tikzstyle{arrow} = [-{Latex[scale=3,length=3,width=2]}, rounded corners = \corners]
+\tikzstyle{noarrow} = [line width=1pt]
+
+\NewDocumentCommand{\JumpOver}{ O{arrow} m O{arrow} m }{
+    % Save the line to draw as Jumping Path,
+    % the line(s) to avoid as Obstacles Path,
+    % and a path describing our "hoop" as Jump.
+    \path[#1, spath/save=Jumping Path] #2;
+    \path[#3, spath/save=Obstacles Path] #4;
+    \path[spath/save=Jump]
+        (0, 0) .. controls (0.5, 0) and (0.5, 1) .. 
+        (1.5, 1) .. controls (2.5, 1) and (2.5, 0) .. 
+        (3, 0);
+    
+    \tikzset{
+      spath/split at intersections with={Jumping Path}{Obstacles Path},
+      spath/insert gaps after components={Jumping Path}{3mm},
+      spath/join components with={Jumping Path}{Jump},
+    }        
+    \draw[#3, spath/use=Obstacles Path];
+    \draw[#1, spath/use=Jumping Path];
+}
+
+\scalebox{0.7}{
+\begin{tikzpicture}[node distance=0.7cm and 0.7cm,
+      line join = round,
+      line width = 1pt,
+      auto,
+      start chain = going down,
+      box/.style = {draw, rectangle, font=\huge, on chain},
+      L/.style = {draw, black, rounded corners = \corners,
+                     -{Latex[scale=3,length=3,width=2]}},
+      T/.style args = {#1/#2}{draw, black, rounded corners = \corners,
+                     to path={-| node[pos=#1,text=black] {#2}
+                     (\tikztotarget)},
+                     -{Latex[scale=3,length=3,width=2]}},
+      T/.default = /,
+      Ti/.style args = {#1/#2}{draw, black, rounded corners = \corners,
+                     to path={-| node[pos=#2,text=black] {#1}
+                     (\tikztotarget)},
+                     {Latex[scale=3,length=3,width=2]}-},
+      Ti/.default = /,
+]
+
+\baselineskip=0.3cm
+\node (annotation) [manual]              {Manual\\IED\\Annotation};
+\node (annotationArtefacts) [manual, left = of annotation] {Manual\\Artefact\\Annotation};
+\node (PSG) [manual, left = of annotationArtefacts]                 {Sleep\\Scoring};
+\node (empty0) [empty, below = of annotation]                       {};
+\node (annotationSplit) [empty, below = of empty0]                  {};
+\node (alignment) [process, below = of annotationSplit]             {Alignment};
+\node (lp) [process, right = of annotation]                         {LP filter};
+\node (chansel) [decision, above = of lp]                           {Channel\\Selection};
+\node (DB) [io, above = of chansel]                                 {Offline\\Database};
+\node (DA) [startstop, above = of DB]                               {Online\\Data\\Acquisition};
+\node (continuousIED) [io] at (alignment -| lp)                     {Continuous\\IED Data};
+\node (hp) [process, right = of lp]                                 {HP filter};
+\node (empty1) [empty, right = of hp]                               {};
+\node (epoching) [process, below = of alignment]                    {Epoching};
+\node (windowing) [process] at (epoching -| hp)                     {Windowing};
+\node (IED) [io, below = of epoching]                               {Epoched\\Data};
+\node (window) [io, below = of windowing]                           {Windowed\\Data};
+\node (clusterIED) [process, below = of IED]                        {Clustering};
+\node (templateIED) [io, below = of clusterIED]                     {IED\\Template};
+\node (search) [decision] at (templateIED -| continuousIED)         {IED\\Template\\Search};
+\node (detected) [io, below = of search]                            {Detected\\IED};
+\node (continuousSpike) [io, below = of empty1]                     {Continuous\\Spike Data};
+\node (prewhiten) [process, right = of continuousSpike]             {Pre-\\whitening};
+\node (artefactSpike) [empty] at (annotationSplit -| prewhiten)     {};
+\node (threshold) [process, below = of prewhiten]                   {Threshold\\Detection};
+\node (spikes) [io, below = of threshold]                           {Spike-\\times};
+\node (artifactRejectionSpike) [decision, below = of spikes]        {Artefact\\rejection};
+\node (clusterSpike) [process, below = of artifactRejectionSpike]   {Clustering};
+\node (templateSpike) [io] at (templateIED -| clusterSpike)         {Spike\\Template};
+\node (searchSpike) [decision] at (templateIED -| continuousSpike)  {Spike\\Template\\Search};
+\node (spikeCluster) [io, below = of searchSpike]                   {Spike\\Cluster};
+\node (selectSpike) [decision, below = of spikeCluster]             {Evaluate\\Cluster};
+\node (phy) [manual, right = of selectSpike]                        {Visual\\Evaluation};
+\node (SUA) [io, below = of selectSpike]                            {Isolated\\Units};
+\node (empty5) [empty, below = of SUA]                              {};
+\node (artifactRejectionWindow) [decision] at (SUA -| window) {Artefact\\rejection};
+\node (combineIED) [combine, label={above left:{\textit{c}}}] at (empty5 -| detected)      {};
+\node (empty4) [empty]  at  (combineIED -| artifactRejectionWindow)   {};
+\node (combineWindow) [combine, label={above left:{\textit{d}}}, below = of empty4] {};
+\node (outWindow) [io, below = of combineWindow]                         {Window\\$\times$ Stage\\$\times$ Unit};
+\node (outIED) [io] at (outWindow -| lp)                            {IED\\$\times$ Stage\\$\times$ Unit};
+\node (empty3) [empty, below = of outIED]                           {};
+\node (empty4) [empty, below = of outWindow]                        {};
+\node (artifactRejectionIED) [decision, below = of detected]        {Artefact\\rejection};
+
+\draw[T](chansel.south) to                                  (annotation);
+\draw[T](DB) to                                             (annotationArtefacts);
+\draw[T](chansel.west) -| node [pos=0.85, right] {PSG}      (PSG);
+\draw[arrow](DB) to                                         (chansel);
+\draw[arrow](chansel)  to node [pos=0.10, right] {Macro}    (lp);
+\draw[T](chansel.east) -| node [pos=0.85, right] {Micro}    (hp);
+\draw[arrow](DA) to                                         (DB);
+\draw[arrow](continuousIED) to                              (alignment);
+\draw[T](continuousIED.east) to                             (windowing.north);
+\draw[arrow](alignment) to                                  (epoching);
+\draw[arrow](windowing) to                                  (window);
+\draw[arrow](epoching) to                                   (IED);
+\draw[arrow](IED) to                                        (clusterIED);
+\draw[arrow](window) to                                     (artifactRejectionWindow);
+\draw[arrow](clusterIED) to                                 (templateIED);
+\draw[arrow](templateIED) to                                (search);
+\draw[arrow](continuousIED) to                              (search);
+\draw[arrow](search) to                                     (detected);
+\draw[arrow](detected) to                                   (artifactRejectionIED);
+\draw[T](hp.east) to                                        (continuousSpike.north);
+\draw[arrow](continuousSpike) to                            (prewhiten);
+\draw[arrow](prewhiten) to                                  (threshold);
+\draw[arrow](threshold) to                                  (spikes);
+\draw[arrow](artifactRejectionSpike) to                     (clusterSpike);
+\draw[arrow](spikes) to                                     (artifactRejectionSpike);
+\draw[arrow](templateSpike) to                              (searchSpike);
+\draw[arrow](searchSpike) to                                (spikeCluster);
+\draw[arrow](spikeCluster) to                               (selectSpike);
+\draw[T](spikeCluster.east) to                              (phy.north);
+\draw[arrow](clusterSpike) to                               (templateSpike);
+\draw[arrow](selectSpike) to                                (SUA);
+\draw[arrow](phy) to                                        (selectSpike);
+\draw[arrow](combineWindow) to                              (outWindow);
+\draw[Ti](combineWindow.east) to                            (SUA.280);
+\draw[L] (annotationArtefacts.270) to                       (artifactRejectionIED -| annotationArtefacts.270) to (artifactRejectionIED);
+\draw[T, name path=line 5](spikes) to                       (searchSpike.west);
+\draw[arrow](outIED) to                                     (empty3);
+\draw[arrow](outWindow) to                                  (empty4);
+
+%% first times don't draw the long one because it has to jump as well
+\JumpOver{(annotation) to (alignment)}[L, draw=none]{(annotationArtefacts.290) to (threshold -| annotationArtefacts.290) to (threshold -| continuousSpike.290) to (artifactRejectionSpike -| continuousSpike.290) to (artifactRejectionSpike.west)};
+
+\JumpOver{(lp) to (continuousIED)}[L, draw=none]{(annotationArtefacts.290) to (threshold -| annotationArtefacts.290) to (threshold -| continuousSpike.290) to (artifactRejectionSpike -| continuousSpike.290) to (artifactRejectionSpike.west)};
+
+\JumpOver{(continuousSpike) to (searchSpike)}[L, draw=none]{(annotationArtefacts.290) to (threshold -| annotationArtefacts.290) to (threshold -| continuousSpike.290) to (artifactRejectionSpike -| continuousSpike.290) to (artifactRejectionSpike.west) to (spikes) to (continuousIED)};
+
+%% now draw and jump
+\JumpOver{(annotationArtefacts.290) to (threshold -| annotationArtefacts.290) to (threshold -| continuousSpike.290) to (artifactRejectionSpike -| continuousSpike.290) to (artifactRejectionSpike.west)}[T, draw=none]{(spikes) to (searchSpike.west)};
+
+%% south part of schema
+
+\JumpOver{(artifactRejectionIED) to (combineIED)}[L]{(annotationArtefacts.250) to (artifactRejectionWindow -| annotationArtefacts.250) to (artifactRejectionWindow)};
+\draw[Ti](combineIED.west) to (PSG.280);
+\JumpOver{(combineIED) to (outIED)}[Ti]{(combineWindow.west) to (PSG.260)};
+\JumpOver{(artifactRejectionWindow) to (combineWindow)}[Ti]{(combineIED.east) to (SUA.260)};
+
+\end{tikzpicture}
+}
+
